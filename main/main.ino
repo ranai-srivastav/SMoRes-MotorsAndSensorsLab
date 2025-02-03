@@ -1,16 +1,18 @@
+#include <Servo.h>
 #define POT A0
 #define LIGHT A1
 #define IR A2
 #define US A3
 #define BTN 3
 
+#define SERVO 11
+
 int state = 0;
 
 volatile bool btn0IsPressed = false;
 unsigned long debounce0 = 0;
 
-const int MAX_PWM_VOLTAGE = 255;
-const int NOM_PWM_VOLTAGE = 150;
+Servo Servo1;
 
 void isr0() {
   btn0IsPressed = true;
@@ -28,6 +30,8 @@ void setup() {
 
   pinMode(BTN, INPUT);
   attachInterrupt(digitalPinToInterrupt(BTN), isr0, RISING);
+
+  Servo1.attach(SERVO);
 }
 
 void loop() {
@@ -37,7 +41,7 @@ void loop() {
   }
 
   if (state == 0) {
-    ReadPot();
+    PotServo();
   }
   else if (state == 1) {
     ReadIR();
@@ -72,35 +76,12 @@ void SwitchState() {
   Serial.println(state);
 }
 
-void ReadPot() {
+void PotServo() {
   int val = analogRead(POT);
-  int D = map(val, 0, 1023, -NOM_PWM_VOLTAGE, NOM_PWM_VOLTAGE);
+  int D = map(val, 0, 1023, 5, 175);
   Serial.println(D);
 
-  // //END A5 CONTROL SECTION
-
-  // //Ensure that you don't go past the maximum possible command
-  // if (D > MAX_PWM_VOLTAGE) {
-  //     D = MAX_PWM_VOLTAGE;
-  // }
-  // else if (D < -MAX_PWM_VOLTAGE) {
-  //     D = -MAX_PWM_VOLTAGE;
-  // }
-
-  // //Map the D value to motor directionality
-  // //FLIP ENCODER PINS SO SPEED AND D HAVE SAME SIGN
-  // if (D > 0) {
-  //     ledcWrite(ledChannel_1, LOW);
-  //     ledcWrite(ledChannel_2, D);
-  // }
-  // else if (D < 0) {
-  //     ledcWrite(ledChannel_1, -D);
-  //     ledcWrite(ledChannel_2, LOW);
-  // }
-  // else {
-  //     ledcWrite(ledChannel_1, LOW);
-  //     ledcWrite(ledChannel_2, LOW);
-  // }
+  Servo1.write(D);
 }
 
 void ReadLight() {
