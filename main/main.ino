@@ -19,6 +19,13 @@ unsigned long debounce0 = 0;
 
 Servo Servo1;
 
+//IR sensor moving average//
+const int numReadings = 10;
+int irReadings[numReadings];
+int irReadIdx = 0;
+long irTotal = 0;
+
+
 void isr0() {
   btn0IsPressed = true;
 }
@@ -52,7 +59,7 @@ void loop() {
   }
 
   if (state == 0) {
-    PotServo();
+    ReadPot();
   }
   else if (state == 1) {
     ReadIR();
@@ -87,12 +94,12 @@ void SwitchState() {
   Serial.println(state);
 }
 
-void PotServo() {
+void ReadPot() {
   int val = analogRead(POT);
-  int D = map(val, 0, 1023, 5, 175);
+  int D = map(val, 0, 1023, 0, 180);
   Serial.println(D);
 
-  Servo1.write(D);
+  //CmdServo(D);
 }
 
 void ReadLight() {
@@ -102,7 +109,37 @@ void ReadLight() {
 
 void ReadIR() {
   int val = analogRead(IR);
-  Serial.println(val);
+  //float volt = map(val, 0, 1023, 0, 5);
+  float volt = val * 0.0049;
+  //Serial.println(val);
+  Serial.print(volt);
+  Serial.print("V, ");
+  //float dist = -(log(volt - 0.4) - 1.4)/0.077;
+  float dist = (6762/(val-9))-4;
+  if (volt > 2.5 || volt < 0.4 || isnan(dist)) {
+    Serial.println("out of detection range (<10cm or >80cm)");
+  }
+  else {
+    //perform simple moving average//
+    irTotal = irTotal - irReadings[irReadIdx];
+    irReadings[irReadIdx] = dist;
+    irTotal = irTotal + irReadings[irReadIdx];
+    irReadIdx = (irReadIdx + 1)%numReadings;
+    long average = irTotal/numReadings;
+    //
+
+    Serial.print(average);
+    Serial.println("cm");
+
+    if (average < 50) {
+      float cmd = map(average, 10, 50, 0, 180);
+      //CmdServo(cmd);
+    }
+  }
+}
+
+void CmdServo(float cmd) {
+  Servo1.write(cmd);
 }
 
 void ReadUS() {
