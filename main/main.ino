@@ -1,11 +1,16 @@
 #include <Servo.h>
-#define POT A0
-#define LIGHT A1
-#define IR A2
-#define US A3
-#define BTN 3
 
-#define SERVO 11
+#define       POT A0
+#define     LIGHT A1
+#define        IR A2
+#define        US A3
+#define       BTN  3
+#define     DC_L1 12
+#define     DC_L2 13
+#define DC_ENABLE  6
+#define   DC_ENC1  0
+#define   DC_ENC2  1
+#define     SERVO 11
 
 int state = 0;
 
@@ -27,8 +32,14 @@ void setup() {
   pinMode(LIGHT, INPUT);
   pinMode(IR, INPUT);
   pinMode(US, INPUT);
-
   pinMode(BTN, INPUT);
+    
+  pinMode(       DC_L1, OUTPUT);
+  pinMode(       DC_L2, OUTPUT);
+  pinMode(   DC_ENABLE, OUTPUT);
+  pinMode(     DC_ENC1, OUTPUT);
+  pinMode(     DC_ENC2, OUTPUT);
+
   attachInterrupt(digitalPinToInterrupt(BTN), isr0, RISING);
 
   Servo1.attach(SERVO);

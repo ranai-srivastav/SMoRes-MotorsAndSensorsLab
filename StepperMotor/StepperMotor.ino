@@ -12,7 +12,6 @@ void setup() {
   pinMode(      STEP_MS2, OUTPUT);
   pinMode(      STEP_DIR, OUTPUT);
   pinMode(   STEP_ENABLE, OUTPUT);
-
 }
 
 void loop() {
