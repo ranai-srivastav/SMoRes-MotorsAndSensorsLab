@@ -1,9 +1,11 @@
-#define     DC_L1 12
-#define     DC_L2 13
+#define     DC_L1 13
+#define     DC_L2 12
 #define DC_ENABLE  6
 #define   DC_ENC1  0
 #define   DC_ENC2  1
 #define        US A3
+
+#define RE(signal, state) (state=(state<<1)|(signal&1)&3)==1
 
 int t = 0;
 
@@ -13,8 +15,8 @@ void setup() {
   pinMode(       DC_L1, OUTPUT);
   pinMode(       DC_L2, OUTPUT);
   pinMode(   DC_ENABLE, OUTPUT);
-  pinMode(     DC_ENC1, OUTPUT);
-  pinMode(     DC_ENC2, OUTPUT);
+  pinMode(     DC_ENC1, INPUT_PULLUP);
+  pinMode(     DC_ENC2, INPUT_PULLUP);
 
   pinMode(US, INPUT);
 
@@ -31,13 +33,19 @@ void loop() {
   digitalWrite(DC_L1, LOW);
   digitalWrite(DC_L2, HIGH);
 
-  int val1 = digitalRead(DC_ENC1);
-  int val2 = digitalRead(DC_ENC2);
+  int DCEnc1_val = digitalRead(DC_ENC1);
+  int DCEnc2_val = digitalRead(DC_ENC2);
+
+  
 }
+
+unsigned char prev_DCEnc1 = 0;
+unsigned char prev_DCEnc2 = 0;
 
 void getCounts()
 {
-  
+  if(prev)
+
 }
 
 // void Ultrasound_DCMotor()
