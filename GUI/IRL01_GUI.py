@@ -10,45 +10,55 @@ from time import sleep
 import matplotlib.pyplot as plt
 from matplotlib.backends.backend_tkagg import FigureCanvasTkAgg
 import numpy as np
+import serial
+import re
 
-#Following linraries are only necessary to control audrino from laptop
-from turtle import speed
-from pyfirmata import ArduinoNano, SERVO
+#establishing serial connection
+arduino = serial.Serial(port='COM3',   baudrate=9600, timeout=.1)
+arduino.set_buffer_size(rx_size = 10, tx_size = 10)
 
-#-------------------------------------------------------------------------
-#Example function for Servo motor control on audrino from laptop
-#TODO: enable serial input and integrate data read
-board = None #ArduinoNano('COM3')
-pin = 8
-#board.digital[pin].mode = SERVO
-def CCW():
+#READ LATEST SERIAL SENSOR DATA INPUTS
+def read_state_sensor():
+    global state, curr_sensor_read, new_data
+    arduino.flush()
+    arduino.flushInput()
+    arduino.flushOutput()
+    sleep(0.1)
+    if arduino.in_waiting > 0:
+        data_raw = arduino.readline()
+        data_read = data_raw.decode()
+        pattern = r"^\d{1},\d{1,}$"
+        if re.search(pattern, data_read):
+            #print(data_read)
+            state = int(data_read.split(',')[0])
+            curr_sensor_read = int(data_read.split(',')[1])
+            new_data = True
+    # Scheduling update at 100ms
+    win.after(10, read_state_sensor)
+
+#Send command to rotate motors
+def rotate_motors():
+    servo_val = int(Servo_motor.get())
+    stepper_val = int(stepper_motor.get())
+    DC_Pos_val = int(DC_motor_Pos.get())
+    DC_Vel_val = int(DC_motor_Vel.get())
+    DC = max(DC_Pos_val,DC_Vel_val)
+    arduino.write(bytes("rp"+str(servo_val),  'utf-8'))
+    sleep(1.5)
+    arduino.write(bytes("ss"+str(servo_val),  'utf-8'))
+    sleep(1.5)
+    arduino.write(bytes("dp"+str(DC),  'utf-8'))
+    sleep(0.5)
     return
-    board.digital[3].write(1)
-    board.digital[5].write(0)
-    endAngle = int(rotationAngle.get())
-    speed = int(rotationSpeed.get())
-    delay = delaySelect(speed)
-    for angle in range(0, endAngle):
-        board.digital[pin].write(angle)
-        sleep(delay)
-    board.digital[3].write(0)
-def delaySelect(speed):
-    match speed:
-        case 1: delay = 0.12
-        case 2: delay = 0.09
-        case 3: delay = 0.06
-        case 4: delay = 0.03
-        case 5: delay = 0.01
-    return delay
-#------------------------------------------------------------------
-
+    
 #Bottom Buttons-----------------------------------------
 def aboutMsg():
     messagebox.showinfo("About",
     "Sensor and Motor Controls Lab - Task 3\n\n Team G-SMoRes \n\n February 2025")
 
 def quitApp():
-    board.exit()
+    plt.close('all')
+    arduino.close()
     win.destroy()
 #------------------------------------------------------------------
 
@@ -60,35 +70,45 @@ win.minsize(350,550)
 #TODO:Change plot types and axis based on state change
 # Create a Matplotlib figure
 fig, ax = plt.subplots()
-line, = ax.plot([], [])
-ax.set_xlim(0, 200)
-ax.set_ylim(0, 100)
+line = ax.plot([])
+ax.set_xlim(0, 100)
+ax.set_ylim(0, 200)
 
 # Embed the plot in the Tkinter window
 canvas = FigureCanvasTkAgg(fig, master=win)
 canvas.get_tk_widget().grid(column=2, row=10)
 
 # Example sensor data
-x_data = []
 y_data = []
 count = 0
+state = 0
+prev_state = 0
+curr_sensor_read = 0
+new_data = False
 
 def update_graph():
-    global x_data, y_data, count
-
-    #Simulaating read from serial input
-    new_x = count
-    new_y = np.random.randint(0, 100)
-    count = count+1
-
-    x_data.append(new_x)
-    y_data.append(new_y)
+    global x_data, y_data, count, curr_sensor_read, state, prev_state,new_data
+    
+    if state != prev_state:
+        y_data = []
+        prev_state = state
+        
+    if new_data==True:
+        #sensor_read.delete(tk.START,tk.END)
+        sensor_read.delete('1.0', tk.END)
+        current_state.delete('1.0', tk.END)
+        sensor_read.insert(tk.END, str(curr_sensor_read))
+        current_state.insert(tk.END, str(state))
+        count = count+1
+        y_data.append(curr_sensor_read)
+        new_data=False
 
     # Limiting data to 100 points
-    x_data = x_data[-100:]
     y_data = y_data[-100:]
 
-    line.set_data(x_data, y_data)
+    #line.set_data(y_data)
+    ax.cla()
+    ax.plot(y_data)
     ax.relim()
     ax.autoscale_view()
     canvas.draw()
@@ -129,23 +149,27 @@ tk.Radiobutton(win, text = "Counter-Clockwise", variable = rev_mtr,
 
 #TODO: update based on serial input
 #state value read from serial input
-current_state = tk.Entry(win, bd=6, width=2)
+current_state = tk.Text(win, bd=6, height = 1, width = 2)
 current_state.grid(column=2, row=7)
-current_state.insert(0, "1")
+current_state.insert(tk.END, "0")
 tk.Label(win, text="State",font=("Arial", 10, "bold")).grid(column=1, row=7)
 
 #TODO: update based on serial input
 #Current sensor intensity value read from serial input
-sensor_read = tk.Entry(win, bd=6, width=2)
+#sensor_read = tk.Entry(win, bd=6, width=5)
+sensor_read = tk.Text(win, bd=6, height = 1, width = 4)
 sensor_read.grid(column=2, row=8)
-sensor_read.insert(0, "52")
+sensor_read.insert(tk.END, "0")
 tk.Label(win, text="Sensor Reading",font=("Arial", 10, "bold")).grid(column=1, row=8)
 
 #TODO: Ensure the button only shows up when state is 5
 #Button to initiate motor rotation by sending serial command
-initiate_rotation_Btn = tk.Button(win, bd=5, bg='#89CFF0', text="Rotate", command=CCW)
+initiate_rotation_Btn = tk.Button(win, bd=5, bg='#89CFF0', text="Rotate", command=rotate_motors)
 initiate_rotation_Btn.grid(column=2, row=14)
-
+if state!=4:
+    initiate_rotation_Btn.config(state=tk.DISABLED)
+else:
+    initiate_rotation_Btn.config(state=tk.NORMAL)
 
 aboutBtn = tk.Button(win, bg='yellow', text="About", command=aboutMsg)
 aboutBtn.grid(column=1, row=14)
@@ -154,6 +178,8 @@ quitBtn = tk.Button(win, bg='red', text="QUIT", command=quitApp)
 quitBtn.grid(column=3, row=14)
 
 #update the plot in every loop
+read_state_sensor()
 update_graph()
+
 
 win.mainloop()
