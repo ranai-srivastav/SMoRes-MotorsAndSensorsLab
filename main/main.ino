@@ -1,3 +1,6 @@
+//
+// Created by aayush on 2/5/25.
+//
 #include <Servo.h>
 
 #define       POT A0
@@ -50,7 +53,7 @@ void resetEDPins()
 }
 
 void resetDCMotor(){
-  analogWrite(DC_ENABLE, 0);  
+  analogWrite(DC_ENABLE, 0);
 }
 
 void resetAll(){
@@ -65,14 +68,14 @@ String encdir ="";
 void setup() {
   // put your setup code here, to run once:
   Serial.begin(9600);
-  
-  
+
+
   pinMode(POT, INPUT);
   pinMode(LIGHT, INPUT);
   pinMode(IR, INPUT);
   pinMode(US, INPUT);
   pinMode(BTN, INPUT);
-    
+
   pinMode(       DC_L1, OUTPUT);
   pinMode(       DC_L2, OUTPUT);
   pinMode(   DC_ENABLE, OUTPUT);
@@ -104,7 +107,7 @@ void setup() {
 void loop() {
     // Read the current state of inputCLK
 //   currentStateCLK = digitalRead(DC_ENCA);
-//   
+//
 //   if (currentStateCLK != previousStateCLK){
 //       if (digitalRead(DC_ENCB) != currentStateCLK) {
 //       counter--;
@@ -112,12 +115,12 @@ void loop() {
 //       } else {
 //       // Encoder is rotating clockwise
 //       counter++;
-//       encdir ="CW";       
+//       encdir ="CW";
 //     }
 //   }
 //   // Update previousStateCLK with the current state
-   previousStateCLK = currentStateCLK;
-   
+//   previousStateCLK = currentStateCLK;
+
   if (CheckForButton0Press()) {
     SwitchState();
   }
@@ -137,12 +140,13 @@ void loop() {
     //float volt = map(val, 0, 1023, 0, 5);
     float volt = val * 0.0049;
     //Serial.println(val);
-    Serial.print(volt);
-    Serial.print("V, ");
+//    Serial.print(volt);
+//    Serial.print("V, ");
     //float dist = -(log(volt - 0.4) - 1.4)/0.077;
     float dist = (6762/(val-9))-4;
+    Serial.print("1,");
     if (volt > 2.5 || volt < 0.4 || isnan(dist)) {
-      Serial.println("out of detection range (<10cm or >80cm)");
+      Serial.println("-1");
     }
     else {
       //perform simple moving average//
@@ -152,35 +156,33 @@ void loop() {
       irReadIdx = (irReadIdx + 1)%numReadings;
       long average = irTotal/numReadings;
       //
-  
-      Serial.print(average);
-      Serial.println("cm");
-  
+      Serial.println(average);
+
       if (average < 50) {
         float cmd = map(average, 10, 50, 0, 180);
         CmdServo(cmd);
       }
     }
 
-  } 
+  }
   else if (state == 2) {
     int val = analogRead(LIGHT);
-//    Serial.print("2,");
+    Serial.print("2,");
     int scaled = (val/(float)300) * 255;
     if(scaled > 255){
-      scaled = 255;  
+      scaled = 255;
     }else if (scaled < 0){
       scaled = 0;
     }
     analogWrite(DC_ENABLE, scaled);
     digitalWrite(DC_L1, LOW);
     digitalWrite(DC_L2, HIGH);
-//    Serial.print(scaled);
-//    Serial.print("\n");
-    Serial.println(counter);
+    Serial.print(val);
+    Serial.print("\n");
   }
   else if (state == 3) {
     int val = analogRead(US);
+    Serial.print("3,");
     Serial.print(val);
     Serial.print("\n");
   }else if(state == 4){
@@ -196,18 +198,29 @@ void loop() {
             Serial.print("Number: ");
             Serial.println(number);
             if(command[0] == 's'){
-              moveStepper(number);  
+              moveStepper(number);
             }
             else if(command[0] == 'd'){
-              moveDCMotor(number);  
+              moveDCMotor(number);
+            }else if(command[0] == 'r'){
+              CmdServo((float) number); 
             }
         }
-    }  
+    }
   }
 }
 
-void moveDCMotor(int degrees){
-    
+void moveDCMotor(int speed){
+  Serial.println("Moving DC Motor");
+    if(speed > 0){
+      digitalWrite(DC_L1, LOW);
+      digitalWrite(DC_L2, HIGH);
+    }else{
+      speed = -speed;
+      digitalWrite(DC_L1, HIGH);
+      digitalWrite(DC_L2, LOW);
+    }
+    analogWrite(DC_ENABLE, speed);
 }
 void moveStepper(int degrees){
   int steps = degrees / (float) 1.8;
@@ -244,8 +257,7 @@ void SwitchState() {
   debounce0 = 0;
   state += 1;
   state = state % 5;
-  Serial.print("Switching to state ");
-  Serial.println(state);
+  Serial.println("4,0");
   resetAll();
 }
 
