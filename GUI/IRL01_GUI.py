@@ -44,7 +44,7 @@ def read_state_sensor():
 def rotate_motors():
     servo_val = int(Servo_motor.get())
     stepper_val = int(stepper_motor.get())
-    DC_Pos_val = int(DC_motor_Pos.get())
+    #DC_Pos_val = int(DC_motor_Pos.get())
     DC_Vel_val = int(DC_motor_Vel.get())
     #Scaling DC motor input as it only runs for inputs between 100-200 because of voltage issues
     if DC_Vel_val!=0:
@@ -147,19 +147,16 @@ def update_graph():
     y_data = y_data[-1000:]
 
     #line.set_data(y_data)
-    if len(y_data)>100:
-        ax.cla()
+    ax.cla()
+    ax.plot(y_data,linestyle='-', linewidth=2,alpha=.5)
+    if len(y_data)>60:    
         y_datan = np.asarray(y_data)
-        #Y = np.log(y_datan**3) + 10*np.random.random(y_datan.shape)
         Y2 = scipy.signal.savgol_filter(y_datan,window_length=20, polyorder=10)
-        ax.plot(y_data,linestyle='-', linewidth=2,alpha=.5)
         ax.plot(Y2,color='r')
-        #ax.plot(y_data)
-        ax.relim()
-        ax.autoscale_view()
-        ax.set_ylabel(UNITS[int(state)])
-        canvas.draw()
-        count=0
+    ax.relim()
+    ax.autoscale_view()
+    ax.set_ylabel(UNITS[int(state)])
+    canvas.draw()
 
     # Scheduling update at 10ms
     win.after(1, update_graph)
@@ -181,9 +178,9 @@ DC_motor_Vel.grid(column=3, row=3)
 tk.Label(win, text="DC Motor Vel",font=("Arial", 26, "bold"), fg="blue").grid(column=1, row=3)
 
 #DC motor Position scale
-DC_motor_Pos = tk.Scale(win, bd=5,sliderlength=15, from_=0, to=100, orient=tk.HORIZONTAL)
-DC_motor_Pos.grid(column=3, row=4)
-tk.Label(win, text="DC Motor Pos",font=("Arial", 26, "bold"), fg="blue").grid(column=1, row=4)
+#DC_motor_Pos = tk.Scale(win, bd=5,sliderlength=15, from_=0, to=100, orient=tk.HORIZONTAL)
+#DC_motor_Pos.grid(column=3, row=4)
+#tk.Label(win, text="DC Motor Pos",font=("Arial", 26, "bold"), fg="blue").grid(column=1, row=4)
 
 #DC motor rotation direction button
 rev_mtr = tk.StringVar(win, "1")
