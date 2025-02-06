@@ -136,34 +136,7 @@ void loop() {
       Serial.print("\n");
   }
   else if (state == 1) {
-    int val = analogRead(IR);
-    //float volt = map(val, 0, 1023, 0, 5);
-    float volt = val * 0.0049;
-    //Serial.println(val);
-//    Serial.print(volt);
-//    Serial.print("V, ");
-    //float dist = -(log(volt - 0.4) - 1.4)/0.077;
-    float dist = (6762/(val-9))-4;
-    Serial.print("1,");
-    if (volt > 2.5 || volt < 0.4 || isnan(dist)) {
-      Serial.println("-1");
-    }
-    else {
-      //perform simple moving average//
-      irTotal = irTotal - irReadings[irReadIdx];
-      irReadings[irReadIdx] = dist;
-      irTotal = irTotal + irReadings[irReadIdx];
-      irReadIdx = (irReadIdx + 1)%numReadings;
-      long average = irTotal/numReadings;
-      //
-      Serial.println(average);
-
-      if (average < 50) {
-        float cmd = map(average, 10, 50, 0, 180);
-        CmdServo(cmd);
-      }
-    }
-
+    ReadIR();
   }
   else if (state == 2) {
     int val = analogRead(LIGHT);
@@ -181,10 +154,7 @@ void loop() {
     Serial.print("\n");
   }
   else if (state == 3) {
-    int val = analogRead(US);
-    Serial.print("3,");
-    Serial.print(val);
-    Serial.print("\n");
+    UltrasoundRead();
   }else if(state == 4){
     if (Serial.available()) {
         char buffer[20];
@@ -257,16 +227,36 @@ void SwitchState() {
   debounce0 = 0;
   state += 1;
   state = state % 5;
-  Serial.println("4,0");
+  if (state == 4)
+  {
+    for(int idx = 0; idx<10; idx++)
+    {
+      Serial.print("4,0\n");
+    }
+  }
   resetAll();
+}
+
+void UltrasoundRead()
+{
+  // mV = mV/inch * inch + mV_bias ===> mV_bias = 0
+  // mV / (mV/inch) = inch
+  int US_ADC_counts = analogRead(US);
+  float US_voltage_mV = US_ADC_counts * 5.0 / 1023.0 * 1000;
+  float US_dist_inches = US_voltage_mV / 9.8;
+  Serial.print("US_voltage_mV: ");
+  Serial.print(US_voltage_mV);
+  Serial.print(" and US_dist_inches: ");
+  Serial.println(US_dist_inches);
+  
+  Serial.print("3,");
+  Serial.println(US_dist_inches);
 }
 
 void ReadPot() {
   int val = analogRead(POT);
   int D = map(val, 0, 1023, 0, 180);
   Serial.println(D);
-
-//  CmdServo(D);
 }
 
 void ReadLight() {
@@ -293,14 +283,16 @@ void ReadIR() {
     irTotal = irTotal + irReadings[irReadIdx];
     irReadIdx = (irReadIdx + 1)%numReadings;
     long average = irTotal/numReadings;
-    //
-
+    
     Serial.print(average);
     Serial.println("cm");
 
+    Serial.print("1,");
+    Serial.println(average);
+
     if (average < 50) {
       float cmd = map(average, 10, 50, 0, 180);
-      //CmdServo(cmd);
+      CmdServo(cmd);
     }
   }
 }
@@ -308,22 +300,3 @@ void ReadIR() {
 void CmdServo(float cmd) {
   Servo1.write(cmd);
 }
-
-void updateEncoder() {
-    int MSB = digitalRead(DC_ENCA); // Most significant bit
-    int LSB = digitalRead(DC_ENCB); // Least significant bit
-    int encoded = (MSB << 1) | LSB;       // Combine bits into a single number
-    int sum = (lastEncoded << 2) | encoded; // Combine previous and current states
-
-    if (sum == 0b1101 || sum == 0b0100 || sum == 0b0010 || sum == 0b1011) {
-        encoderPosition++; // Clockwise
-    } else if (sum == 0b1110 || sum == 0b0111 || sum == 0b0001 || sum == 0b1000) {
-        encoderPosition--; // Counterclockwise
-    }
-
-    lastEncoded = encoded; // Save current state
-}
-//void ReadUS() {
-//  int val = analogRead(US);
-//  Serial.println(val)
-//}

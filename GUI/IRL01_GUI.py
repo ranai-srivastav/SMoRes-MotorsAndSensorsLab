@@ -16,7 +16,7 @@ import re
 UNITS=["Ohms","cms","Lux","inches","NONE"]
 
 #establishing serial connection
-arduino = serial.Serial(port='COM3',   baudrate=9600, timeout=.1)
+arduino = serial.Serial(port='/dev/ttyACM0',   baudrate=9600, timeout=.1)
 arduino.set_buffer_size(rx_size = 10, tx_size = 10)
 
 #READ LATEST SERIAL SENSOR DATA INPUTS
