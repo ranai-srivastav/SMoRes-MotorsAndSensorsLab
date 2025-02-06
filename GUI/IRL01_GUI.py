@@ -12,11 +12,12 @@ from matplotlib.backends.backend_tkagg import FigureCanvasTkAgg
 import numpy as np
 import serial
 import re
+import scipy
 
 UNITS=["Ohms","cms","Lux","inches","NONE"]
 
 #establishing serial connection
-arduino = serial.Serial(port='/dev/ttyACM0',   baudrate=9600, timeout=.1)
+arduino = serial.Serial(port='COM3',   baudrate=9600, timeout=.1)
 arduino.set_buffer_size(rx_size = 10, tx_size = 10)
 
 #READ LATEST SERIAL SENSOR DATA INPUTS
@@ -29,6 +30,7 @@ def read_state_sensor():
     if arduino.in_waiting > 0:
         data_raw = arduino.readline()
         data_read = data_raw.decode()
+        arduino.reset_input_buffer()
         pattern = r"^\d{1},\d{1,}$"
         if re.search(pattern, data_read):
             #print(data_read)
@@ -36,7 +38,7 @@ def read_state_sensor():
             curr_sensor_read = int(data_read.split(',')[1])
             new_data = True
     # Scheduling update at 100ms
-    win.after(10, read_state_sensor)
+    win.after(1, read_state_sensor)
 
 #Send command to rotate motors
 def rotate_motors():
@@ -44,6 +46,7 @@ def rotate_motors():
     stepper_val = int(stepper_motor.get())
     DC_Pos_val = int(DC_motor_Pos.get())
     DC_Vel_val = int(DC_motor_Vel.get())
+    #Scaling DC motor input as it only runs for inputs between 100-200 because of voltage issues
     if DC_Vel_val!=0:
         DC_Vel_val = ((DC_Vel_val/360)*100)+100
     print(rev_mtr.get())
@@ -94,6 +97,30 @@ prev_state = 0
 curr_sensor_read = 0
 new_data = False
 
+def savitzky_golay(y, window_size, order, deriv=0, rate=1):
+    from math import factorial
+
+    try:
+        window_size = np.abs(np.int(window_size))
+        order = np.abs(np.int(order))
+    except ValueError:
+        raise ValueError("window_size and order have to be of type int")
+    if window_size % 2 != 1 or window_size < 1:
+        raise TypeError("window_size size must be a positive odd number")
+    if window_size < order + 2:
+        raise TypeError("window_size is too small for the polynomials order")
+    order_range = range(order+1)
+    half_window = (window_size -1) // 2
+    # precompute coefficients
+    b = np.mat([[k**i for i in order_range] for k in range(-half_window, half_window+1)])
+    m = np.linalg.pinv(b).A[deriv] * rate**deriv * factorial(deriv)
+    # pad the signal at the extremes with
+    # values taken from the signal itself
+    firstvals = y[0] - np.abs( y[1:half_window+1][::-1] - y[0] )
+    lastvals = y[-1] + np.abs(y[-half_window-1:-1][::-1] - y[-1])
+    y = np.concatenate((firstvals, y, lastvals))
+    return np.convolve( m[::-1], y, mode='valid')
+
 def update_graph():
     global x_data, y_data, count, curr_sensor_read, state, prev_state,new_data
     if state != prev_state:
@@ -120,9 +147,14 @@ def update_graph():
     y_data = y_data[-1000:]
 
     #line.set_data(y_data)
-    if count==10:
+    if len(y_data)>100:
         ax.cla()
-        ax.plot(y_data)
+        y_datan = np.asarray(y_data)
+        #Y = np.log(y_datan**3) + 10*np.random.random(y_datan.shape)
+        Y2 = scipy.signal.savgol_filter(y_datan,window_length=20, polyorder=10)
+        ax.plot(y_data,linestyle='-', linewidth=2,alpha=.5)
+        ax.plot(Y2,color='r')
+        #ax.plot(y_data)
         ax.relim()
         ax.autoscale_view()
         ax.set_ylabel(UNITS[int(state)])
@@ -130,7 +162,7 @@ def update_graph():
         count=0
 
     # Scheduling update at 10ms
-    win.after(10, update_graph)
+    win.after(1, update_graph)
 
 #TODO: Ensure Scale ranges are correct
 #servo motor scale
